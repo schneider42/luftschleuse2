@@ -8,6 +8,7 @@
 #include "timer0.h"
 #include "buttons.h"
 #include "leds.h"
+#include "display_process.h"
 
 #include <avr/io.h>
 #include <avr/wdt.h>
@@ -16,14 +17,6 @@
 #include <string.h>
 #include <stdint.h>
 
-
-typedef struct{
-    uint32_t seq;
-    int locked:1;
-}__attribute__((packed)) state_t;
-
-state_t state_ee EEMEM = {.seq=3, .locked=1};
-state_t state;
 
 int main(void)
 {
@@ -35,19 +28,14 @@ int main(void)
     WDTCSR |= (1<<WDCE) | (1<<WDE);
     /* Turn off WDT */
     WDTCSR = 0x00;
-    //DDRA |= 0x07;
-    //PORTA &= ~7;
-    //DDRC |= 0x07;
-    //DDRC |= 0xC0;
 
-    eeprom_read_block(&state, &state_ee, sizeof(state));
-    aes_handler_init();
     bus_handler_init();
     serial_init();
     bus_init();
     cmd_init();
     buttons_init();
     leds_init();
+    display_init();
     timer0_init();
     sei();
     
@@ -62,12 +50,11 @@ int main(void)
             serial_tick();
             buttons_tick();
             leds_tick();
+            display_tick();
         }
         bus_process();
         serial_process();
-
-        //aes128_enc(data, &ctx); /* encrypting the data block */
+        display_process();
     }
-
 }
 

@@ -85,7 +85,6 @@ serial_handler.c \
 serial_process.c \
 buttons.c \
 leds.c \
-../common/aes.c \
 ../common/timer0.c \
 command_process.c \
 ../common/bus_handler.c \
@@ -93,7 +92,11 @@ bus_process.c \
 ../common/uart.c \
 ../common/packet.c \
 power_process.c \
-../common/adc.c
+../common/adc.c \
+lcd.c \
+lcdhal.c \
+display_process.c
+
 
 # List C++ source files here. (C dependencies are automatically generated.)
 CPPSRC = 
@@ -112,7 +115,7 @@ ASRC =
 # Optimization level, can be [0, 1, 2, 3, s]. 
 #     0 = turn off optimization. s = optimize for size.
 #     (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
-OPT = 2
+OPT = 3
 
 
 # Debugging format.
@@ -307,7 +310,7 @@ AVRDUDE_WRITE_EEPROM = -F -U eeprom:w:$(TARGET).eep
 # reports about avrdude. See <http://savannah.nongnu.org/projects/avrdude> 
 # to submit bug reports.
 #AVRDUDE_VERBOSE = -v -v
-AVRDUDE_FLAGS = -p $(MCU) -B 1
+AVRDUDE_FLAGS = -p $(MCU) -B 15
 
 ifdef AVRDUDE_PROGRAMMER
 AVRDUDE_FLAGS += -c $(AVRDUDE_PROGRAMMER)

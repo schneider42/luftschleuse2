@@ -13,9 +13,12 @@ import traceback
 from doorlogic import DoorLogic
 from interfacelogic import InterfaceLogic
 from announce import Announcer
+from display_controller import DisplayController
+from displaylogic import DisplayLogic
 
 config = ConfigParser.RawConfigParser()
-config.read(sys.argv[1])
+config_file = sys.argv[1]
+config.read(config_file)
 
 logger = logging.getLogger('logger')
 logger.setLevel(logging.DEBUG)
@@ -37,6 +40,7 @@ try:
     baudrate = config.get('Master Controller', 'baudrate')
 
     ser = serialinterface.SerialInterface(serialdevice, baudrate, timeout=.1)
+
     input_queue = Queue.Queue()
 
     udpcommand = UDPCommand('127.0.0.1', 2323, input_queue)
@@ -44,6 +48,10 @@ try:
     doors = {}
 
     master = None
+
+    display = None
+    
+    display_controller = None
 
     logic = DoorLogic()
 
@@ -55,27 +63,18 @@ try:
         if config.has_option(section, 'type'):
             t = config.get(section, 'type')
             if t == 'door':
-                name = section
-                txseq = int(config.get(section, 'txsequence'))
-                rxseq = int(config.get(section, 'rxsequence'))
-                address = config.get(section, 'address')
-                initial_unlock = config.get(section, 'inital_unlock')
-                if initial_unlock == 'True':
-                    initial_unlock = True
-                else:
-                    initial_unlock = False
-
-                key = config.get(section, 'key')
-                logger.debug('Adding door "%s"'%section)
-                door = Door(name, address, txseq, rxseq, key, ser, initial_unlock, input_queue)
-                doors[address] = door
+                door_name = section
+                logger.debug('Adding door "%s"'%door_name)
+                door = Door(door_name, config_file, config, ser, input_queue)
+                door_address = config.get(door_name, 'address')
+                doors[door_address] = door
                 logic.add_door(door)
             else:
                 logger.warning('Unknown entry type "%s"', t)
         elif section == 'Master Controller':
-            txseq = int(config.get(section, 'txsequence'))
-            rxseq = int(config.get(section, 'rxsequence'))
-            key = config.get(section, 'key')
+            #txseq = int(config.get(section, 'txsequence'))
+            #rxseq = int(config.get(section, 'rxsequence'))
+            #key = config.get(section, 'key')
             
             buttons_section = 'Master Controller Buttons'
             buttons = {}
@@ -88,9 +87,25 @@ try:
             for led_name in config.options(leds_section):
                 led_pin = int(config.get(leds_section, led_name))
                 leds[led_name] = led_pin
-
-
-            master = MasterController('0', txseq, rxseq, key, ser, input_queue, buttons, leds) 
+            
+            master = MasterController('0', ser, input_queue, buttons, leds) 
+        
+        elif section == 'Display':
+            display_type = t = config.get(section, 'display_type') 
+            if display_type == "Nokia_1600":
+                from display import Display
+                display = Display(ser)
+            elif display_type == 'simulation':
+                from display_pygame import Display
+                display = Display()
+            elif display_type == 'network':
+                from display_network import Display
+                display = Display()
+            elif display_type == 'None':
+                display = None
+            else:
+                logger.warning('Unknown display type "%s"', display_type)
+                
     
     if master == None:
         logger.error('Please specify a master controller')
@@ -98,13 +113,22 @@ try:
 
     interface_logic = InterfaceLogic(master)
     logic.add_state_listener(interface_logic.update_state)
+    
+    if display != None:
+        display_controller = DisplayController(display)
+        display_logic = DisplayLogic(display_controller)
+        logic.add_state_listener(display_logic.update_state)
+        for door in doors.values():
+            display_logic.add_door(door)
+
+    else:
+        logger.warning('No display specified.')
 
     input_queue.put({'origin_name': 'init',
                      'origin_type': DoorLogic.Origin.INTERNAL,
                      'input_name': '',
                      'input_type': DoorLogic.Input.COMMAND,
                      'input_value': 'down'})
-    
     while True:
         timeout = False
         while not timeout:
@@ -130,7 +154,9 @@ try:
         announcer.tick()
         interface_logic.tick()
         logic.tick()
-        
+        if display_controller != None:
+            display_controller.tick()
+        ''' 
         all_locked = True
         for d in doors:
             if not doors[d].locked:
@@ -139,8 +165,7 @@ try:
             logger.debug("All doors locked")
         else:
             logger.debug("NOT all doors locked")
-        master.set_global_state(all_locked)
-
+        '''
 #try:
 #    pass
 except Exception, e:
