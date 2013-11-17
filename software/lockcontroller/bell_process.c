@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
 #define MIN_PRESS   50
 #define MAX_PRESS   2500
@@ -32,7 +33,7 @@
 #define MAX_BEEPS   20
 
 
-static char *code = ".--.---";
+static char *code = ".-..-";
 static int16_t times[MAX_BEEPS + 1];
 static uint8_t step;
 static uint8_t debounce;
@@ -100,17 +101,19 @@ void bell_tick(void)
       if ( press_timer > MIN_PRESS && press_timer < MAX_PRESS && step < MAX_BEEPS){
 	times[step + 1] = 0;
 	times[step++] = press_timer;
-      }
-      else{
+        //printf("press %d", press_timer);
+      } else{
 	step = 0;
+        c = 2000;
+        times[0] = 0;
+      }
 	press_timer = -1;
-            c = 2000;
-        }
     }
 
     if( break_timer > MAX_BREAK ){
         break_timer = -1;
         step = 0;
+        times[0] = 0;
     }
 
 }
@@ -138,46 +141,51 @@ bool bell_isAccepted(void)
     
     int nshort = 0;
     int nlong = 0 ;
-    int16_t sshort = 0;
-    int16_t ssshort = 0;
-    int16_t slong = 0;
-    int16_t sslong = 0;
+    int32_t sshort = 0;
+    int32_t ssshort = 0;
+    int32_t slong = 0;
+    int32_t sslong = 0;
 
     for(beep = 0; beep < beeps; beep++){
       if(times[beep] <= times[boundary]){
 	++nshort;
 	sshort += times[beep];
-	ssshort += times[beep] * times[beep];
+	ssshort = (int32_t)times[beep] * times[beep];
       }
       else{
 	++nlong;
 	slong += times[beep];
-	sslong += times[beep] * times[beep];
+	sslong += (int32_t)times[beep] * times[beep];
       }
     }
     
     if(nshort){
+      //printf("sqrt(%f) ", (double) ssshort * nshort / (double) sshort / (double) sshort - 1.0);
       badness = sqrt((double) ssshort * nshort / (double) sshort / (double) sshort - 1.0);
     }
     else{
       badness = 0.0;
     }
     if(nlong){
+      //printf("sqrt(%f) ", (double) sslong * nlong / (double) slong / (double) slong - 1.0);
       badness += sqrt((double) sslong * nlong / (double) slong / (double) slong - 1.0);
     }
-    
+    //printf("badness: %f ", badness); 
     if(badness < best_badness){
       best_badness = badness;
       best_boundary = times[boundary];
     }
   }
-  
+  //printf("best_boundary: %d ", best_boundary); 
   for(beep=0; beep < beeps; beep++){
+    //printf("beep: %d ", times[beep]);
     if(times[beep] <= best_boundary){
+      printf("kurz ");
       if(code[beep] != '.')
 	matches = false;
     }
     else{
+      printf("lang ");
       if(code[beep] != '-')
 	matches = false;
     } 
@@ -185,7 +193,7 @@ bool bell_isAccepted(void)
   
   if(matches)
     c = 2000;
-  
+  printf("match: %d", matches); 
   return matches;
 
 }

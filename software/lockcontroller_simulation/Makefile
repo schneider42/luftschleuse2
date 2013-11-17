@@ -27,7 +27,7 @@ XDEPS   := $(wildcard ${DEPS})
 
 CFLAGS = -std=gnu99 -O2 -Wall -Werror -ggdb 
 LDFLAGS = 
-LIBS    = -lcurses -lcrypto -lssl
+LIBS    = -lcurses -lcrypto -lssl -lm
 
 CFLAGS += -I../lockcontroller -I../common -I../lockcontroller_simulation -I.
 CFLAGS += -DNATIVE_TARGET
